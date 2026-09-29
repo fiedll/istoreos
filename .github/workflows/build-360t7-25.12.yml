@@ -32,7 +32,7 @@ jobs:
             build-essential clang llvm flex bison gawk gettext git rsync unzip file wget \
             python3 python3-setuptools python3-pip python3-dev \
             libncurses-dev zlib1g-dev libssl-dev libelf-dev device-tree-compiler \
-            xsltproc swig time ccache
+            xsltproc swig time ccache dwarves
 
       - name: Verify host LLVM
         run: |
