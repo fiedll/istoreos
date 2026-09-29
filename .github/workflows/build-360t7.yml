@@ -67,41 +67,35 @@ jobs:
           make defconfig
 
           # 360T7 network safety fallback:
-          # Keep the board.d DSA mapping (lan1/lan2/lan3 -> LAN, wan -> WAN),
-          # but explicitly seed the first-boot UCI configuration so a stale or
-          # incomplete board-detection result cannot leave the router without
-          # an accessible LAN address.
+          # Keep the board.d DSA mapping and explicitly seed first-boot UCI
+          # so a stale or incomplete board-detection result cannot leave
+          # the router without an accessible LAN address.
           mkdir -p package/base-files/files/etc/uci-defaults
           cat > package/base-files/files/etc/uci-defaults/99-360t7-network <<'EOF'
-#!/bin/sh
-
-# Force the known-good 360T7 DSA layout on first boot.
-# LAN: physical lan1/lan2/lan3, bridge br-lan, management IP 192.168.1.1
-# WAN: physical wan, DHCP client.
-
-uci -q delete network.br_lan
-uci set network.br_lan='device'
-uci set network.br_lan.name='br-lan'
-uci set network.br_lan.type='bridge'
-uci add_list network.br_lan.ports='lan1'
-uci add_list network.br_lan.ports='lan2'
-uci add_list network.br_lan.ports='lan3'
-
-uci -q delete network.lan
-uci set network.lan='interface'
-uci set network.lan.device='br-lan'
-uci set network.lan.proto='static'
-uci set network.lan.ipaddr='192.168.1.1'
-uci set network.lan.netmask='255.255.255.0'
-
-uci -q delete network.wan
-uci set network.wan='interface'
-uci set network.wan.device='wan'
-uci set network.wan.proto='dhcp'
-
-uci commit network
-exit 0
-EOF
+          #!/bin/sh
+          # Known-good 360T7 DSA layout:
+          # LAN = lan1/lan2/lan3 on br-lan, management = 192.168.1.1
+          # WAN = wan, DHCP client.
+          uci -q delete network.br_lan
+          uci set network.br_lan='device'
+          uci set network.br_lan.name='br-lan'
+          uci set network.br_lan.type='bridge'
+          uci add_list network.br_lan.ports='lan1'
+          uci add_list network.br_lan.ports='lan2'
+          uci add_list network.br_lan.ports='lan3'
+          uci -q delete network.lan
+          uci set network.lan='interface'
+          uci set network.lan.device='br-lan'
+          uci set network.lan.proto='static'
+          uci set network.lan.ipaddr='192.168.1.1'
+          uci set network.lan.netmask='255.255.255.0'
+          uci -q delete network.wan
+          uci set network.wan='interface'
+          uci set network.wan.device='wan'
+          uci set network.wan.proto='dhcp'
+          uci commit network
+          exit 0
+          EOF
           chmod 0755 package/base-files/files/etc/uci-defaults/99-360t7-network
 
           echo "==> 360T7 network fallback:"
