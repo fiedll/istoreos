@@ -44,7 +44,16 @@ test -f package/v2ray-geodata/Makefile
 ln -sfn mosdns/luci-app-mosdns package/luci-app-mosdns
 ln -sfn mosdns/geo2txt package/geo2txt
 
+# iStoreOS 24.10 replaces the normal OpenWrt packages feed with its own
+# packages feed, which does not carry tailscale. Add the official 24.10
+# packages feed under a separate name and install only tailscale from it.
+if ! grep -q '^src-git openwrt_packages ' feeds.conf; then
+  printf '\nsrc-git openwrt_packages https://github.com/openwrt/packages.git;openwrt-24.10\n' >> feeds.conf
+fi
+./scripts/feeds update openwrt_packages
+./scripts/feeds install -p openwrt_packages tailscale
+
 echo "==> Checking Tailscale package"
-test -f feeds/packages/net/tailscale/Makefile
+test -f package/feeds/openwrt_packages/tailscale/Makefile
 
 echo "==> Package preparation complete"
