@@ -1,0 +1,77 @@
+name: Build iStoreOS 25.12 360T7
+
+on:
+  push:
+    branches:
+      - istoreos-25.12
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: istoreos-25.12-360t7
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+
+    steps:
+      - name: Checkout iStoreOS 25.12
+        uses: actions/checkout@v4
+        with:
+          ref: istoreos-25.12
+          fetch-depth: 1
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential clang flex bison gawk gettext git rsync unzip file wget \
+            python3 python3-setuptools python3-pip python3-dev \
+            libncurses-dev zlib1g-dev libssl-dev libelf-dev device-tree-compiler \
+            xsltproc swig time ccache
+
+      - name: Prepare feeds and external packages
+        run: |
+          chmod +x scripts/prepare-360t7-25.12.sh
+          ./scripts/prepare-360t7-25.12.sh
+
+      - name: Configure 360T7 firmware
+        run: |
+          cp config/360t7-25.12.config .config
+          make defconfig
+
+          echo "==> Target"
+          grep -E '^CONFIG_TARGET_(mediatek|ARCH_PACKAGES)' .config | grep -E 'TARGET_mediatek|DEVICE_qihoo_360t7|ARCH_PACKAGES' || true
+
+          echo "==> Requested packages"
+          grep -E '^CONFIG_PACKAGE_(mosdns|luci-app-mosdns|geo2txt|v2ray-geoip|v2ray-geosite|dae|daed|luci-app-daede|tailscale|kmod-tun|kmod-sched-core|kmod-sched-bpf|kmod-veth|kmod-xdp-sockets-diag|kmod-nft-tproxy)=' .config || true
+
+          echo "==> BTF/BPF"
+          grep -E '^CONFIG_KERNEL_(BPF|CGROUP_BPF|DEBUG_INFO|XDP|NET_CLS_BPF|NET_ACT_BPF|NET_SCH_INGRESS|VETH)=' .config || true
+
+      - name: Download sources
+        run: |
+          make -j$(nproc) download V=s
+
+      - name: Build firmware
+        run: |
+          make -j$(nproc) V=s
+
+      - name: Verify image
+        run: |
+          find bin/targets/mediatek/filogic -maxdepth 2 -type f -printf '%p\n' | sort
+          test -n "$(find bin/targets/mediatek/filogic -type f -name '*qihoo_360t7*' | head -n 1)"
+          test -n "$(find bin/targets/mediatek/filogic -type f -name '*sysupgrade*' | head -n 1)"
+
+      - name: Upload 360T7 firmware
+        uses: actions/upload-artifact@v4
+        with:
+          name: istoreos-25.12-360t7-mosdns-daede-tailscale
+          path: |
+            bin/targets/mediatek/filogic/*
+            bin/packages/aarch64_cortex-a53/*
+          if-no-files-found: error
