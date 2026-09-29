@@ -1,0 +1,95 @@
+name: Build iStoreOS 360T7
+
+on:
+  push:
+    branches:
+      - istoreos-24.10
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: istoreos-360t7
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential clang flex bison gawk gettext git rsync unzip file wget \
+            python3 python3-setuptools python3-pip python3-dev \
+            libncurses-dev zlib1g-dev libssl-dev libelf-dev device-tree-compiler \
+            xsltproc swig time ccache
+
+      - name: Prepare feeds and packages
+        run: |
+          chmod +x scripts/prepare-360t7.sh
+          ./scripts/prepare-360t7.sh
+
+      - name: Enable 360T7 + services
+        run: |
+          cp config/360t7.config .config
+
+          # The target already exists in iStoreOS 24.10. Enable the kernel
+          # features required by dae/daed before defconfig resolves deps.
+          cat >> .config <<'EOF'
+          CONFIG_TARGET_mediatek=y
+          CONFIG_TARGET_mediatek_filogic=y
+          CONFIG_TARGET_mediatek_filogic_DEVICE_qihoo_360t7=y
+          CONFIG_KERNEL_BPF=y
+          CONFIG_KERNEL_BPF_SYSCALL=y
+          CONFIG_KERNEL_BPF_JIT=y
+          CONFIG_KERNEL_BPF_EVENTS=y
+          CONFIG_KERNEL_BPF_STREAM_PARSER=y
+          CONFIG_KERNEL_CGROUP_BPF=y
+          CONFIG_KERNEL_DEBUG_INFO=y
+          CONFIG_KERNEL_DEBUG_INFO_BTF=y
+          CONFIG_KERNEL_XDP_SOCKETS=y
+          CONFIG_KERNEL_XDP_SOCKETS_DIAG=y
+          CONFIG_KERNEL_NET_CLS_BPF=m
+          CONFIG_KERNEL_NET_ACT_BPF=m
+          CONFIG_KERNEL_NET_SCH_INGRESS=m
+          CONFIG_KERNEL_VETH=m
+          EOF
+
+          make defconfig
+
+          echo "==> Target:"
+          grep -E '^CONFIG_TARGET_(mediatek|ARCH_PACKAGES)' .config | grep -E '(^CONFIG_TARGET_mediatek|DEVICE_qihoo_360t7|ARCH_PACKAGES)' || true
+
+          echo "==> Requested packages:"
+          grep -E '^CONFIG_PACKAGE_(mosdns|luci-app-mosdns|geo2txt|v2ray-geoip|v2ray-geosite|daed|dae|luci-app-daede|tailscale|kmod-tun)=' .config || true
+
+          echo "==> BTF/BPF:"
+          grep -E '^CONFIG_KERNEL_(BPF|CGROUP_BPF|DEBUG_INFO|XDP|NET_CLS_BPF|NET_ACT_BPF|NET_SCH_INGRESS|VETH)=' .config || true
+
+      - name: Build firmware
+        run: |
+          make -j$(nproc) download V=s
+          make -j$(nproc) V=s
+
+      - name: Verify 360T7 images
+        run: |
+          find bin/targets/mediatek/filogic -maxdepth 2 -type f -printf '%p\n' | sort
+          test -n "$(find bin/targets/mediatek/filogic -type f -name '*360*t7*' -o -name '*360T7*' | head -n 1)"
+
+      - name: Upload firmware
+        uses: actions/upload-artifact@v4
+        with:
+          name: istoreos-360t7-mosdns-daede-tailscale
+          path: |
+            bin/targets/mediatek/filogic/*
+            bin/packages/aarch64_cortex-a53/*
+          if-no-files-found: error
