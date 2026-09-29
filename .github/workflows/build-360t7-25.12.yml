@@ -29,10 +29,21 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            build-essential clang flex bison gawk gettext git rsync unzip file wget \
+            build-essential clang llvm flex bison gawk gettext git rsync unzip file wget \
             python3 python3-setuptools python3-pip python3-dev \
             libncurses-dev zlib1g-dev libssl-dev libelf-dev device-tree-compiler \
             xsltproc swig time ccache
+
+      - name: Verify host LLVM
+        run: |
+          echo "==> Host LLVM"
+          command -v clang
+          clang --version
+          command -v llc
+          llc --version
+          command -v llvm-dis
+          command -v opt
+          command -v llvm-strip
 
       - name: Prepare feeds and external packages
         run: |
@@ -51,6 +62,7 @@ jobs:
           grep -E '^CONFIG_PACKAGE_(mosdns|luci-app-mosdns|geo2txt|v2ray-geoip|v2ray-geosite|dae|daed|luci-app-daede|tailscale|kmod-tun|kmod-sched-core|kmod-sched-bpf|kmod-veth|kmod-xdp-sockets-diag|kmod-nft-tproxy)=' .config || true
 
           echo "==> BTF/BPF"
+          grep -E '^CONFIG_(BPF_TOOLCHAIN_HOST|BPF_TOOLCHAIN_HOST_PATH|USE_LLVM_HOST|HAS_BPF_TOOLCHAIN)=' .config || true
           grep -E '^CONFIG_KERNEL_(BPF|CGROUP_BPF|DEBUG_INFO|XDP|NET_CLS_BPF|NET_ACT_BPF|NET_SCH_INGRESS|VETH)=' .config || true
 
       - name: Download sources
