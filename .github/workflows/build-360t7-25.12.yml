@@ -1,26 +1,23 @@
-name: Build iStoreOS 25.12 360T7
+name: Build iStoreOS 25.12 JDCloud AX1800 Pro
 
 on:
   push:
-    branches:
-      - istoreos-25.12
+    branches: [istoreos-25.12]
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: istoreos-25.12-360t7
+  group: istoreos-25.12-ax1800pro
   cancel-in-progress: false
 
 jobs:
   build:
     runs-on: ubuntu-24.04
     timeout-minutes: 360
-
     steps:
-      - name: Checkout iStoreOS 25.12
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           ref: istoreos-25.12
           fetch-depth: 1
@@ -28,62 +25,50 @@ jobs:
       - name: Install build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
-            build-essential clang llvm flex bison gawk gettext git rsync unzip file wget \
-            python3 python3-setuptools python3-pip python3-dev \
-            libncurses-dev zlib1g-dev libssl-dev libelf-dev device-tree-compiler \
-            xsltproc swig time ccache dwarves
+          sudo apt-get install -y build-essential clang llvm flex bison gawk gettext git rsync unzip file wget python3 python3-setuptools python3-pip python3-dev libncurses-dev zlib1g-dev libssl-dev libelf-dev device-tree-compiler xsltproc swig time ccache dwarves patch quilt libtool-bin
 
-      - name: Verify host LLVM
+      - name: Verify host tools
         run: |
-          echo "==> Host LLVM"
-          command -v clang
-          clang --version
-          command -v llc
-          llc --version
-          command -v llvm-dis
-          command -v opt
-          command -v llvm-strip
+          command -v clang && clang --version
+          command -v llc && llc --version
+          command -v pahole && pahole --version
 
-      - name: Prepare feeds and external packages
+      - name: Prepare feeds and packages
         run: |
           chmod +x scripts/prepare-360t7-25.12.sh
           ./scripts/prepare-360t7-25.12.sh
 
-      - name: Configure 360T7 firmware
+      - name: Configure JDCloud AX1800 Pro
         run: |
           cp config/360t7-25.12.config .config
           make defconfig
-
-          echo "==> Target"
-          grep -E '^CONFIG_TARGET_(mediatek|ARCH_PACKAGES)' .config | grep -E 'TARGET_mediatek|DEVICE_qihoo_360t7|ARCH_PACKAGES' || true
-
-          echo "==> Requested packages"
-          grep -E '^CONFIG_PACKAGE_(mosdns|luci-app-mosdns|geo2txt|v2ray-geoip|v2ray-geosite|dae|daed|luci-app-daede|tailscale|kmod-tun|kmod-sched-core|kmod-sched-bpf|kmod-veth|kmod-xdp-sockets-diag|kmod-nft-tproxy)=' .config || true
-
-          echo "==> BTF/BPF"
-          grep -E '^CONFIG_(BPF_TOOLCHAIN_HOST|BPF_TOOLCHAIN_HOST_PATH|USE_LLVM_HOST|HAS_BPF_TOOLCHAIN)=' .config || true
-          grep -E '^CONFIG_KERNEL_(BPF|CGROUP_BPF|DEBUG_INFO|XDP|NET_CLS_BPF|NET_ACT_BPF|NET_SCH_INGRESS|VETH)=' .config || true
+          grep -E '^CONFIG_TARGET_(qualcommax|ARCH_PACKAGES)|^CONFIG_TARGET_qualcommax_ipq60xx_DEVICE_jdcloud_re-ss-01=' .config || true
+          grep -E '^CONFIG_PACKAGE_(mosdns|luci-app-mosdns|dae|daed|luci-app-daede|tailscale|kmod-tun|luci-app-passwall|xray-core|sing-box)=' .config || true
+          test "$(grep -c '^CONFIG_TARGET_qualcommax_ipq60xx_DEVICE_jdcloud_re-ss-01=y' .config)" -eq 1
+          ! grep -q '^CONFIG_TARGET_mediatek=' .config
 
       - name: Download sources
-        run: |
-          make -j$(nproc) download V=s
+        run: make -j$(nproc) download V=s
 
       - name: Build firmware
         run: |
-          make -j$(nproc) V=s
+          set -o pipefail
+          make -j$(nproc) V=s 2>&1 | tee build.log
 
       - name: Verify image
         run: |
-          find bin/targets/mediatek/filogic -maxdepth 2 -type f -printf '%p\n' | sort
-          test -n "$(find bin/targets/mediatek/filogic -type f -name '*qihoo_360t7*' | head -n 1)"
-          test -n "$(find bin/targets/mediatek/filogic -type f -name '*sysupgrade*' | head -n 1)"
+          OUT=bin/targets/qualcommax/ipq60xx
+          find "$OUT" -maxdepth 1 -type f -printf '%p\n' | sort
+          test -n "$(find "$OUT" -type f -name '*jdcloud_re-ss-01*' | head -1)"
+          test -n "$(find "$OUT" -type f -name '*sysupgrade*' | head -1)"
+          test -n "$(find "$OUT" -type f -name '*factory*' | head -1)"
 
-      - name: Upload 360T7 firmware
+      - name: Upload firmware and log
         uses: actions/upload-artifact@v4
         with:
-          name: istoreos-25.12-360t7-mosdns-daede-tailscale
+          name: istoreos-25.12-jdcloud-re-ss-01-mosdns-daed-tailscale-passwall
           path: |
-            bin/targets/mediatek/filogic/*
+            bin/targets/qualcommax/ipq60xx/*
             bin/packages/aarch64_cortex-a53/*
+            build.log
           if-no-files-found: error
