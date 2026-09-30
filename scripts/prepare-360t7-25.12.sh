@@ -12,8 +12,8 @@ rm -rf feeds/packages/net/mosdns feeds/packages/net/v2ray-geodata
 rm -rf package/feeds/packages/mosdns package/feeds/packages/v2ray-geodata
 
 grep -q '^src-git daede ' feeds.conf.default || printf '\nsrc-git daede https://github.com/kenzok8/openwrt-daede.git;main\n' >> feeds.conf.default
-grep -q '^src-git passwall ' feeds.conf.default || printf 'src-git passwall https://github.com/xiaorouji/openwrt-passwall.git;main\n' >> feeds.conf.default
-grep -q '^src-git passwall_packages ' feeds.conf.default || printf 'src-git passwall_packages https://github.com/xiaorouji/openwrt-passwall_packages.git;main\n' >> feeds.conf.default
+grep -q '^src-git passwall ' feeds.conf.default || printf 'src-git passwall https://github.com/Openwrt-Passwall/openwrt-passwall.git;main\n' >> feeds.conf.default
+grep -q '^src-git passwall_packages ' feeds.conf.default || printf 'src-git passwall_packages https://github.com/Openwrt-Passwall/openwrt-passwall-packages.git;main\n' >> feeds.conf.default
 
 ./scripts/feeds update daede
 ./scripts/feeds update passwall
