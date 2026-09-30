@@ -78,13 +78,15 @@ TARGET_DEVICES += glinet_gl-axt1800
 
 define Device/jdcloud_re-ss-01
 	$(call Device/FitImage)
+	$(call Device/EmmcImage)
 	DEVICE_VENDOR := JDCloud
 	DEVICE_MODEL := RE-SS-01
 	SOC := ipq6000
-	BLOCKSIZE := 64k
-	KERNEL_SIZE := 6144k
+	BLOCKSIZE := 128k
+	KERNEL_SIZE := 12288k
 	DEVICE_DTS_CONFIG := config@cp03-c2
 	DEVICE_PACKAGES := ipq-wifi-jdcloud_re-ss-01
+	IMAGE/factory.bin := append-kernel | pad-to $(KERNEL_SIZE) | append-rootfs | append-metadata
 endef
 TARGET_DEVICES += jdcloud_re-ss-01
 
