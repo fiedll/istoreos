@@ -61,7 +61,13 @@ jobs:
           find "$OUT" -maxdepth 1 -type f -printf '%p\n' | sort
           test -n "$(find "$OUT" -type f -name '*jdcloud_re-ss-01*' | head -1)"
           test -n "$(find "$OUT" -type f -name '*sysupgrade*' | head -1)"
-          echo "JDCloud RE-SS-01 sysupgrade image verified."
+          MANIFEST="$(find "$OUT" -maxdepth 1 -type f -name '*jdcloud_re-ss-01.manifest' | head -1)"
+          test -n "$MANIFEST"
+          grep -q '^ipq-wifi-jdcloud_re-ss-01 ' "$MANIFEST"
+          grep -q '^kmod-ath11k ' "$MANIFEST"
+          grep -q '^kmod-ath11k-ahb ' "$MANIFEST"
+          grep -q '^ath11k-firmware-ipq6018 ' "$MANIFEST"
+          echo "JDCloud RE-SS-01 image verified: Ethernet + ath11k + board-specific WiFi firmware present."
 
       - name: Upload firmware and log
         uses: actions/upload-artifact@v4
