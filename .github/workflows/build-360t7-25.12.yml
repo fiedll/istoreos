@@ -10,7 +10,7 @@ permissions:
 
 concurrency:
   group: istoreos-25.12-ax1800pro
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   build:
